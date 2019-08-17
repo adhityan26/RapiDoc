@@ -5,10 +5,10 @@ export default async function ProcessSpec(specUrl){
   let jsonParsedSpec, convertedSpec, resolvedRefSpec;
   let convertOptions, resolveOptions;
   let specLocation = '', url;
-  
+
   convertOptions = { patch:true, warnOnly:true};
   try {
-    // JsonRefs cant load yaml files, so first use converter 
+    // JsonRefs cant load yaml files, so first use converter
     if (typeof specUrl==="string") {
       //resolvedRefSpec = await JsonRefs.resolveRefsAt(specUrl, resolveOptions);
       convertedSpec = await converter.convertUrl(specUrl, convertOptions);
@@ -25,12 +25,21 @@ export default async function ProcessSpec(specUrl){
     }
     resolveOptions = {
       resolveCirculars:false,
-      location: specLocation// location is important to specify to resolve relative external file references when using JsonRefs.resolveRefs() which takes an JSON object
+      location: specLocation,// location is important to specify to resolve relative external file references when using JsonRefs.resolveRefs() which takes an JSON object
+      refPreProcessor: (obj, path) => {
+        if (convertedSpec.original.swagger === '2.0') {
+          return {
+            '$ref': obj['$ref'].replace('components/', '')
+          }
+        } else {
+          return obj;
+        }
+      }
     };
     resolvedRefSpec = await JsonRefs.resolveRefs(convertedSpec.openapi, resolveOptions );
     //jsonParsedSpec = convertedSpec.openapi;
     jsonParsedSpec = resolvedRefSpec.resolved;
-    
+    console.log(resolvedRefSpec);
   }
   catch(err){
     console.info("%c There was an issue while parsing the spec %o ", "color:orangered", err);
@@ -58,7 +67,7 @@ export default async function ProcessSpec(specUrl){
 
       if (openApiSpec.paths[path][methodName]){
         let fullPath = openApiSpec.paths[path][methodName];
-        // If path.methods are tagged, else generate it from path 
+        // If path.methods are tagged, else generate it from path
         if(fullPath.tags){
           tagText = fullPath.tags[0];
           if (openApiSpec.tags){
@@ -132,6 +141,10 @@ export default async function ProcessSpec(specUrl){
           finalParameters = fullPath.parameters? fullPath.parameters.slice(0):[];
         }
 
+        if (summary.indexOf('Employee List') > -1) {
+          console.log(finalParameters)
+        }
+
         //Update Responses
         tagObj.paths.push({
           "show"        : true,
@@ -178,7 +191,7 @@ export default async function ProcessSpec(specUrl){
     openApiSpec.servers = [{'url':location.origin}];
   }
   servers = openApiSpec.servers;
-  
+
   tags.sort((a, b) =>  (a.name < b.name ? -1 : (a.name > b.name ? 1: 0)) );
   let parsedSpec = {
     "info"    : openApiSpec.info,
@@ -186,8 +199,9 @@ export default async function ProcessSpec(specUrl){
     "externalDocs": openApiSpec.externalDocs,
     "securitySchemes": securitySchemes,
     "servers" : servers, // In swagger 2, its generated from schemes, host and basePath properties
-    "basePath": openApiSpec.basePath, // Only available in swagger V2 
+    "basePath": openApiSpec.basePath, // Only available in swagger V2
     "totalPathCount" : totalPathCount
   }
+  console.log(parsedSpec)
   return parsedSpec;
 }

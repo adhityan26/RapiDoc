@@ -45,7 +45,7 @@ module.exports = {
         chunks: 'all'
       }
     },
-    
+
     devtool: 'cheap-module-source-map',
     output: {
       path: path.join(__dirname, "dist"),
@@ -53,7 +53,7 @@ module.exports = {
     },
     devServer: {
         contentBase: path.join(__dirname, 'docs'),
-        port: 8080,
+        port: process.env.PROXY_PORT || 8080,
         hot: true
     },
     module: {
